@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hive表字段解析与Prompt批量生成工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .section {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            color: #34495e;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .input-area {
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .btn {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+        }
+
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        .field-buttons {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .field-btn {
+            background-color: #e74c3c;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .field-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .variable {
+            background-color: #ffff00;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Demo-面向批量推理的Prompt批量生成工具</h1>
+            <p>解析Hive表结构，自定义Prompt模板，批量生成Prompt文本</p>
+            <p>请直接点击下方 加载示例数据 按钮，即可看到效果</p>
+        </header>
+
+        <!-- 操作按钮置顶 -->
+        <div class="action-buttons">
+            <button class="btn" onclick="loadSampleData()">加载示例数据</button>
+            <button class="btn btn-secondary" onclick="clearAll()">清空所有内容</button>
+        </div>
+
+        <!-- 步骤1：Hive表字段解析 -->
+        <div class="section">
+            <h2>步骤1：Hive表字段解析</h2>
+            <div class="input-area">
+                <label for="hiveCreateTable">Hive建表语句：</label>
+                <textarea id="hiveCreateTable" placeholder="粘贴Hive CREATE TABLE语句..."></textarea>
+                <button class="btn" onclick="parseHiveTable()">解析表结构</button>
+            </div>
+            <div id="parseStatus" class="status info">请粘贴Hive建表语句并点击解析</div>
+            <div class="table-container">
+                <table id="fieldsTable">
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>字段名</th>
+                            <th>类型</th>
+                            <th>描述</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fieldsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 步骤2：Prompt模板编辑 -->
+        <div class="section">
+            <h2>步骤2：Prompt模板编辑</h2>
+            <div class="field-buttons" id="fieldButtons">
+                <!-- 字段按钮将动态生成 -->
+            </div>
+            <div class="input-area">
+                <label for="promptTemplate">Prompt模板：</label>
+                <textarea id="promptTemplate" placeholder="输入Prompt模板，使用{{fieldName}}引用字段..."></textarea>
+            </div>
+        </div>
+
+        <!-- 步骤3：原始数据输入 -->
+        <div class="section">
+            <h2>步骤3：原始数据输入</h2>
+            <div class="input-area">
+                <label for="hiveData">CSV格式数据（每行一条记录，字段用逗号分隔）：</label>
+                <textarea id="hiveData" placeholder="粘贴CSV格式的Hive数据..."></textarea>
+            </div>
+        </div>
+
+        <!-- 步骤4：Prompt批量生成 -->
+        <div class="section">
+            <h2>步骤4：Prompt批量生成</h2>
+            <button class="btn" onclick="generatePrompts()">生成Prompt</button>
+            <button class="btn btn-secondary" onclick="exportResults()">导出结果</button>
+            <div id="generateStatus" class="status info">点击生成按钮开始批量生成</div>
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>原始数据</th>
+                            <th>生成的Prompt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 存储解析后的字段信息
+        let parsedFields = [];
+
+        // 解析Hive表结构
+        function parseHiveTable() {
+            const createTableText = document.getElementById('hiveCreateTable').value;
+            if (!createTableText.trim()) {
+                showStatus('请输入Hive建表语句', 'error');
+                return;
+            }
+
+            try {
+                // 提取字段定义部分
+                const fieldsMatch = createTableText.match(/\(\s*([\s\S]*?)\s*\)/);
+                if (!fieldsMatch) {
+                    throw new Error('无法找到字段定义部分');
+                }
+
+                const fieldsText = fieldsMatch[1];
+                const fieldLines = fieldsText.split(/,\s*/).filter(line => line.trim() !== '');
+
+                parsedFields = [];
+                let fieldIndex = 1;
+
+                fieldLines.forEach(line => {
+                    // 匹配字段名、类型和注释
+                    const fieldMatch = line.match(/(\w+)\s+(\w+)(?:\s+COMMENT\s+'([^']+)'|\s+COMMENT\s+"([^"]+)")?/i);
+                    if (fieldMatch) {
+                        const fieldName = fieldMatch[1];
+                        const fieldType = fieldMatch[2];
+                        const comment = fieldMatch[3] || fieldMatch[4] || '';
+
+                        parsedFields.push({
+                            index: fieldIndex,
+                            name: fieldName,
+                            type: fieldType,
+                            comment: comment
+                        });
+                        fieldIndex++;
+                    }
+                });
+
+                // 显示解析结果
+                displayParsedFields();
+                // 生成字段插入按钮
+                generateFieldButtons();
+                showStatus(`成功解析 ${parsedFields.length} 个字段`, 'success');
+            } catch (error) {
+                showStatus(`解析失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示解析后的字段
+        function displayParsedFields() {
+            const tbody = document.getElementById('fieldsTableBody');
+            tbody.innerHTML = '';
+
+            parsedFields.forEach(field => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = field.index;
+                row.insertCell().textContent = field.name;
+                row.insertCell().textContent = field.type;
+                row.insertCell().textContent = field.comment;
+            });
+        }
+
+        // 生成字段插入按钮
+        function generateFieldButtons() {
+            const buttonsContainer = document.getElementById('fieldButtons');
+            buttonsContainer.innerHTML = '';
+
+            parsedFields.forEach(field => {
+                const button = document.createElement('button');
+                button.className = 'field-btn';
+                button.textContent = field.name;
+                button.onclick = () => insertFieldVariable(field.name);
+                buttonsContainer.appendChild(button);
+            });
+        }
+
+        // 插入字段变量到模板
+        function insertFieldVariable(fieldName) {
+            const templateTextarea = document.getElementById('promptTemplate');
+            const cursorPosition = templateTextarea.selectionStart;
+            const templateText = templateTextarea.value;
+            const newText = templateText.substring(0, cursorPosition) + `{{${fieldName}}}` + templateText.substring(cursorPosition);
+            templateTextarea.value = newText;
+            templateTextarea.focus();
+            templateTextarea.selectionStart = templateTextarea.selectionEnd = cursorPosition + fieldName.length + 4;
+        }
+
+        // 批量生成Prompt
+        function generatePrompts() {
+            if (parsedFields.length === 0) {
+                showStatus('请先解析Hive表结构', 'error');
+                return;
+            }
+
+            const template = document.getElementById('promptTemplate').value;
+            if (!template.trim()) {
+                showStatus('请输入Prompt模板', 'error');
+                return;
+            }
+
+            const dataText = document.getElementById('hiveData').value;
+            if (!dataText.trim()) {
+                showStatus('请输入Hive数据', 'error');
+                return;
+            }
+
+            try {
+                const dataLines = dataText.split(/\n/).filter(line => line.trim() !== '');
+                const results = [];
+
+                dataLines.forEach(line => {
+                    const values = line.split(/,\s*/);
+                    let prompt = template;
+
+                    // 替换模板中的变量
+                    parsedFields.forEach((field, index) => {
+                        const value = values[index] || '';
+                        prompt = prompt.replace(new RegExp(`{{${field.name}}}`, 'g'), value);
+                    });
+
+                    results.push({
+                        original: line,
+                        prompt: prompt
+                    });
+                });
+
+                // 显示生成结果
+                displayResults(results);
+                showStatus(`成功生成 ${results.length} 个Prompt`, 'success');
+            } catch (error) {
+                showStatus(`生成失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示生成结果
+        function displayResults(results) {
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+
+            results.forEach(result => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = result.original;
+                row.insertCell().textContent = result.prompt;
+            });
+        }
+
+        // 导出结果
+        function exportResults() {
+            const resultsTable = document.getElementById('resultsTable');
+            const rows = resultsTable.querySelectorAll('tbody tr');
+            if (rows.length === 0) {
+                showStatus('没有可导出的结果', 'error');
+                return;
+            }
+
+            // 生成CSV内容
+            let csvContent = '原始数据,生成的Prompt\n';
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const original = cells[0].textContent.replace(/,/g, '\,');
+                const prompt = cells[1].textContent.replace(/,/g, '\,');
+                csvContent += `${original},${prompt}\n`;
+            });
+
+            // 创建下载链接
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'prompt_results.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showStatus('结果已导出为CSV文件', 'success');
+        }
+
+        // 加载示例数据
+        function loadSampleData() {
+            // 示例Hive建表语句
+            const sampleCreateTable = `CREATE TABLE user_info (
+    user_id INT COMMENT '用户ID',
+    user_name STRING COMMENT '用户名',
+    age INT COMMENT '年龄',
+    gender STRING COMMENT '性别',
+    email STRING COMMENT '邮箱',
+    register_time TIMESTAMP COMMENT '注册时间'
+) COMMENT '用户信息表'`;
+
+            // 示例Prompt模板
+            const sampleTemplate = `用户{{user_name}}的ID是{{user_id}}，年龄{{age}}，性别{{gender}}，邮箱{{email}}，注册时间{{register_time}}。`;
+
+            // 示例数据
+            const sampleData = `1,张三,25,男,zhangsan@example.com,2023-01-01 10:00:00
+2,李四,30,女,lisi@example.com,2023-02-15 14:30:00
+3,王五,28,男,wangwu@example.com,2023-03-20 09:15:00`;
+
+            // 填充示例数据
+            document.getElementById('hiveCreateTable').value = sampleCreateTable;
+            document.getElementById('promptTemplate').value = sampleTemplate;
+            document.getElementById('hiveData').value = sampleData;
+
+            // 自动解析表结构
+            parseHiveTable();
+            showStatus('示例数据已加载', 'success');
+        }
+
+        // 清空所有内容
+        function clearAll() {
+            document.getElementById('hiveCreateTable').value = '';
+            document.getElementById('promptTemplate').value = '';
+            document.getElementById('hiveData').value = '';
+            document.getElementById('fieldsTableBody').innerHTML = '';
+            document.getElementById('resultsTableBody').innerHTML = '';
+            document.getElementById('fieldButtons').innerHTML = '';
+            parsedFields = [];
+            showStatus('所有内容已清空', 'info');
+        }
+
+        // 显示状态信息
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('parseStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+    </script>
+</body>
+</html>
