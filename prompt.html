@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hive智能表操作平台</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@6.4.0/css/all.min.css">
+    <style>
+        /* 原样式保留，新增按钮样式 */
+        .example-btn {
+            background: #52c411; 
+            margin-left: 10px;
+            transition: all 0.3s;
+        }
+        .example-btn:hover {
+            background: #4dab37;
+        }
+        .success { display: none; }
+        .error { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 原界面省略，新增一键示例按钮 -->
+        <div class="input-group">
+            <label>输入Hive CREATE TABLE语句</label>
+            <textarea id="ddlInput" rows="8" placeholder="自动检测表名和字段..."></textarea>
+            <div style="margin: 10px 0;">
+                <button class="parse-btn" id="parseBtn">解析表结构</button>
+                <button class="example-btn" id="exampleBtn">一键输入示例</button>
+            </div>
+            <div class="success" id="successMsg">解析成功！已检测到 <span id="tableName">test_table</span> 表，共 <span id="fieldCount">0</span> 个字段</div>
+        </div>
+
+        <!-- 其他步骤界面保持不变 -->
+        <div class="section">
+            <h2>步骤2: 生成Prompt模板</h2>
+            <textarea id="promptTemplate" rows="5" placeholder="例如：查询表{{table_name}}中字段{{fields.id}}的记录"></textarea>
+            <button id="generateBtn">预览Prompt</button>
+        </div>
+
+        <div class="section">
+            <h2>步骤3: 保存Prompt为新表字段</h2>
+            <textarea id="newTableDefinition" rows="5" placeholder="CREATE TABLE new_table ( {{prompt_field}} STRING );"></textarea>
+            <button id="generateSqlBtn">生成创建表SQL</button>
+        </div>
+    </div>
+
+    <script>
+        // 新增：一键输入示例功能
+        document.getElementById('exampleBtn').addEventListener('click', function() {
+            const exampleSql = `
+                CREATE TABLE user_data (
+                    id INT,
+                    name STRING,
+                    age INT,
+                    signup_date DATE,
+                    info STRUCT<address: STRING, email: STRING>
+                ) COMMENT '用户信息表'
+            `;
+            document.getElementById('ddlInput').value = exampleSql;
+            // 自动勾选字段（可选）
+            setTimeout(() => document.getElementById('parseBtn').click(), 500);
+        });
+
+        // 原解析逻辑保持不变
+        // ...
+    </script>
+</body>
+</html>
